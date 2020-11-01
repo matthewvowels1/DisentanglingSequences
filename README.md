@@ -9,4 +9,4 @@ Pendulum swings (60 timesteps)
 
 Animated Sprites (8 timesteps)
 
-![](vid_49_gen.gif)
+![](vid_48_gen.gif)
