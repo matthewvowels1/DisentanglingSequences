@@ -11,7 +11,7 @@ Pendulum swings (60 timesteps)
 
 Animated Sprites [1] (8 timesteps)
 
-![](vid_48_gen.gif)
+![](vid_70_gen.gif)
 
 
 MUG-FED [2] (16 timesteps)
