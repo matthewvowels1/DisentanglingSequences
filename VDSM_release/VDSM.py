@@ -6,7 +6,7 @@ from pyro import poutine
 
 
 class VDSM_EncDec(nn.Module):
-    def __init__(self, enc, dec, z_dim, id_layers, imsize, n_e_w, seq_len, likelihood, nc):
+    def __init__(self, enc, dec, z_dim, id_layers, imsize, n_e_w, seq_len, nc):
         super(VDSM_EncDec, self).__init__()
         self.enc = enc
         self.dec = dec
@@ -16,14 +16,13 @@ class VDSM_EncDec(nn.Module):
         self.n_e_w = n_e_w
         self.imsize = imsize
         self.nc = nc
-        self.likelihood = likelihood
         self.cuda()
         self.ID_loc_layer = torch.nn.Linear(self.n_e_w, self.n_e_w)
         self.ID_scale_layer = torch.nn.Linear(self.n_e_w, self.n_e_w)
 
     def model(self, x, temp=1, anneal_id=1.0, anneal_t=1.0):
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
-        pyro.module('BlendedVAE', self)
+        pyro.module('VDSM_EncDec', self)
         num_individuals, num_timepoints, pixels = x.view(x.shape[0], x.shape[1], self.imsize ** 2 * self.nc).shape
 
         id_plate = pyro.plate("individuals", num_individuals, dim=-2)
@@ -49,19 +48,14 @@ class VDSM_EncDec(nn.Module):
                     seq = self.dec.forward(z[ind], ID[ind, 0].unsqueeze(1))
                     out_all[ind] = seq.view(-1, pixels)
 
-                if self.likelihood == 'Bernoulli':
-                    f = dist.Bernoulli(out_all, validate_args=False).to_event(1)
-                elif self.likelihood == 'Normal':
-                    f = dist.Bernoulli(out_all, 0.1, validate_args=False).to_event(1)
-                elif self.likelihood == 'Laplace':
-                    f = dist.Laplace(out_all, 0.1, validate_args=False).to_event(1)
+                f = dist.Bernoulli(out_all, validate_args=False).to_event(1)
                 x = x.view(num_individuals, num_timepoints, pixels)
                 pyro.sample('obs', f, obs=x)
         return seq
 
     def guide(self, x, temp=1, anneal_id=1.0, anneal_t=1.0):
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
-        pyro.module('BlendedVAE', self)
+        pyro.module('VDSM_EncDec', self)
         num_individuals, num_timepoints, pixels = x.view(x.shape[0], x.shape[1], self.imsize ** 2 * self.nc).shape
 
         id_plate = pyro.plate("individuals", num_individuals, dim=-2)

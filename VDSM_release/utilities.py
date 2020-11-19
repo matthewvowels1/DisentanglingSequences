@@ -1,8 +1,25 @@
+import torch
 import torch.nn as nn
 import torch.nn.init as init
+import torchvision.transforms as transforms
 import os
 from natsort import natsorted
 
+
+def resize_tensor(input_tensors, h, w):
+    # from https://discuss.pytorch.org/t/resizing-any-simple-direct-way/10316/8   by xin71
+    final_output = []
+    batch_size, channel, height, width = input_tensors.shape
+    input_tensors = torch.squeeze(input_tensors, 1)
+
+    for img in input_tensors:
+        img_PIL = transforms.ToPILImage()(img)
+        img_PIL = transforms.Resize([h, w])(img_PIL)
+        img_PIL = transforms.ToTensor()(img_PIL)
+        final_output.append(img_PIL)
+
+    final_output = torch.stack(final_output)
+    return final_output
 
 def check_for_checkpt(folder, suffix):
     files = os.listdir(folder)

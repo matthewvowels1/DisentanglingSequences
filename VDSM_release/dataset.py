@@ -66,7 +66,7 @@ def create_MUG_dataset(folder, imsize, slice_length, seed, pretrain):
 
     labels = np.load(file_labels)['arr_0']
     data = np.load_(npz_file)['arr_0']
-    imgs_train, imgs_test, labels_train, labels_test = train_test_split(data, labels, test_size=.2, random_state=seed)
+    imgs_train, imgs_test, labels_train, labels_test = train_test_split(data, labels, test_size=.25, random_state=seed)
     data_train = [imgs_train, labels_train]
     data_test = [imgs_test, labels_test]
 

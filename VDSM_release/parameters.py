@@ -17,7 +17,7 @@ def get_parameters():
     parser.add_argument('--bs_per_epoch', type=int, default=2)  # 50
     parser.add_argument('--num_test_ids', type=int, default=1)  # 'batch size' for testing swaps and sequence gen
     parser.add_argument('--data_dir', type=str, default='./data/')
-    parser.add_argument('--dataset_name', type=str, default='MUG-FED', choices=['MUG-FED'])
+    parser.add_argument('--dataset_name', type=str, default='MUG-FED', choices=['MUG-FED', 'sprites'])
     parser.add_argument('--pretrained_model_VDSMEncDec', type=int, default=None)
     parser.add_argument('--pretrained_model_VDSMSeq', type=int, default=None)
     parser.add_argument('--train_VDSMEncDec', type=str2bool, default=False)
@@ -31,7 +31,6 @@ def get_parameters():
     parser.add_argument('--code_path', type=str, default='./codes/')
 
     # Blended model hyper-parameters
-    parser.add_argument('--likelihood', type=str, default='Bernoulli', choices=['Bernoulli', 'Normal', 'Laplace'])
     parser.add_argument('--z_dim', type=int, default=20)
     parser.add_argument('--n_e_w', type=int, default=15)
     parser.add_argument('--temp_id_end', type=float, default=1)
@@ -48,16 +47,16 @@ def get_parameters():
     parser.add_argument('--anneal_t_midfrac2', type=float, default=0.6)
     parser.add_argument('--T_0_frac', type=int, default=6)
     parser.add_argument('--T_mult', type=int, default=1)
-    parser.add_argument('--lr_VDSMEncDec', type=float, default=0.0005)
+    parser.add_argument('--lr_VDSMEncDec', type=float, default=0.001)
 
     # Sequence model params
     parser.add_argument('--dynamics_dim', type=int, default=10)
     parser.add_argument('--test_temp_id', type=float, default=10)
-    parser.add_argument('--trans_dim', type=int, default=20)
+    parser.add_argument('--trans_dim', type=int, default=64)
     parser.add_argument('--rnn_dim', type=int, default=512)
     parser.add_argument('--rnn_dropout', type=float, default=0.0)
     parser.add_argument('--rnn_layers', type=int, default=3)
-    parser.add_argument('--lr_VDSMSeq', type=float, default=0.0005)
+    parser.add_argument('--lr_VDSMSeq', type=float, default=0.001)
     parser.add_argument('--lr_resume', type=float, default=None)
     parser.add_argument('--anneal_end_dynamics', type=float, default=1)
     parser.add_argument('--anneal_start_dynamics', type=float, default=0.01)

@@ -1,10 +1,14 @@
 # DisentanglingSequences
-Repo for the work on hierarchical state space models for disentanglement
+Release version of the work on hierarchical state space models for video disentanglement (VDSM)
 
 ## TODO: 
 - Consolidate repeated functions.
-- Add other datasets
+- Consolidate test_harness.py and train_test.py
+- Add pendulum dataset
+- Add moving MNIST dataset
 - Adapt for CPU training
+- Implement Inter and Intra-Entropy for sprites
+- Implement test harness
 
 ##  Generation Samples
 
@@ -12,17 +16,19 @@ Note that these are random samples, so there may be inactive GIFs if the action 
 
 Pendulum swings (60 timesteps)
 
-![](vid_31_gen.gif) ![](vid_32_gen.gif) ![](vid_22_gen.gif)
+![](pend_1.gif) ![](pend_2.gif) ![](pend_3.gif)
 
 Animated Sprites [1] (8 timesteps)
 
-![](vid_70_gen.gif)
+![](sprite_1.gif)![](sprite_2.gif)
 
+MUG-FED [2] (20 timesteps)
 
-MUG-FED [2] (16 timesteps)
+![](mug_1.gif)![](mug_2.gif)![](mug_3.gif)
 
-![](vid_13_gen.gif)
+MovingMNIST [3] (16 timesteps)
 
+![](mnist_1.gif) ![](mnist_2.gif)
 
 ## Required Packages/Libraries
 python 3.7.6
@@ -61,6 +67,8 @@ argparse
 N.B. Currently, VDSM is designed to train on GPU.
 
 ### 0. Download and preprocess MUG-FED dataset
+
+MUG:
 Go to https://mug.ee.auth.gr/fed/ and obtain a license.
 
 Use OpenFace 2.0, https://github.com/TadasBaltrusaitis/OpenFace, to crop and align the images (no mask) to 112x112x3
@@ -74,50 +82,116 @@ and the second column is the action label (and where both have been categoricall
 
 Put these files in VDSM_release/data/MUG-FED/
 
+SPRITES:
+For sprites, additional packages may be required (check ```create_lpc_dataset.py``` which is adapted from https://github.com/yatindandi/Disentangled-Sequential-Autoencoder).
 
+```cd ./data/sprites```
 
+```./data/sprites/create_lpc_dataset.py``` 
+
+This will download the sprites data into train and test folders.
+
+PENDULUM:
+The code used to create this data is provided in ```./data/pendulum_data_creation.ipynb```
 ### 1. Train the Encoder/Decoder
-1.1 Run in terminal: ```cd VDSM_release```
-
-1.2 Run this:
+```cd VDSM_release```
+ 
+MUG:
 ```
-    python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 20 --epochs 200 --bs_per_epoch 50 \
- --num_test_ids 6 --dataset_name MUG-FED --model_save_interval 2 --num_test_ids 2 \
-    --train_VDSMSeq False --train_VDSMEncDec True --model_test_interval 2  \
-  --anneal_start_dynamics 0.1 --anneal_end_dynamics 0.6 --anneal_frac_dynamics 1  --lr_VDSMEncDec 0.0005  --likelihood Bernoulli --z_dim 30 --n_e_w 15 \
+python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 20 --epochs 250 --bs_per_epoch 50 \
+ --num_test_ids 10 --dataset_name MUG-FED --model_save_interval 50  \
+    --train_VDSMSeq False --train_VDSMEncDec True --model_test_interval 10  \
+  --anneal_start_dynamics 0.1 --anneal_end_dynamics 0.6 --anneal_frac_dynamics 1  --lr_VDSMEncDec 0.001 --lr_resume 0.0008  --z_dim 30 --n_e_w 15 \
   --dynamics_dim 50 --test_temp_id 10  --temp_id_end 10 --temp_id_start 1 --temp_id_frac 2 --anneal_end_id 1 --anneal_start_id 0.1 \
-    --anneal_frac_id 3 --anneal_start_t 30.0 --anneal_mid_t1 0.4 --anneal_mid_t2 0.4 --anneal_end_t 1 --anneal_t_midfrac1 0.5 --anneal_t_midfrac2 0.8 \
+    --anneal_frac_id 3 --anneal_start_t 30.0 --anneal_mid_t1 0.2 --anneal_mid_t2 0.4 --anneal_end_t 1 --anneal_t_midfrac1 0.5 --anneal_t_midfrac2 0.8 \
     --rnn_dropout 0.2
 ```
+
+Sprites:
+```
+python3 main.py --RUN release_test_sprites --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 8 --epochs 200 --bs_per_epoch 50 \
+ --num_test_ids 12 --dataset_name sprites --model_save_interval 50  \
+    --train_VDSMSeq False --train_VDSMEncDec True --model_test_interval 10  \
+  --anneal_start_dynamics 0.1 --anneal_end_dynamics 0.6 --anneal_frac_dynamics 1  --lr_VDSMEncDec 0.001 --lr_resume 0.0008  --z_dim 30 --n_e_w 40 \
+  --dynamics_dim 50 --test_temp_id 10  --temp_id_end 10 --temp_id_start 1 --temp_id_frac 2 --anneal_end_id 1 --anneal_start_id 0.1 \
+    --anneal_frac_id 3 --anneal_start_t 30.0 --anneal_mid_t1 0.2 --anneal_mid_t2 0.4 --anneal_end_t 1 --anneal_t_midfrac1 0.5 --anneal_t_midfrac2 0.8 \
+    --rnn_dropout 0.2
+```
+
 
 If you encounter NaN during training, you can try resuming from where you last checkpointed at (this is taken care of automatically).
 
 You need to manually delete the model.pth files in the models folder if you want to start training from scratch.
 
-If you get NaN again, you you use the ```--lr_resume``` argument to reduce the learning rate.
+If you get NaN again, you can use the ```--lr_resume``` argument to reduce the learning rate.
 
 
 ### 2. Train the Sequential Network
 
 To train the sequence network, you have to specify the {}_VDSM_EncDec.pth number to use as the pretrained model.
 (Usually it will be (epochs-1) for the number of epochs used during pretraining)
+
+MUG:
 ```
-    python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 16 --epochs 100 --bs_per_epoch 50 \
- --num_test_ids 10 --dataset_name MUG-FED --model_save_interval 20 --num_test_ids 2 --pretrained_model_VDSMEncDec 99\
+python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 20 --epochs 200 --bs_per_epoch 50 \
+ --num_test_ids 12 --dataset_name MUG-FED --model_save_interval 50 --pretrained_model_VDSMEncDec 249\
     --train_VDSMSeq True --train_VDSMEncDec False --model_test_interval 10  \
-  --anneal_start_dynamics 0.1 --anneal_end_dynamics 0.6 --anneal_frac_dynamics 1  --lr_VDSMSeq 0.001  --likelihood Bernoulli --z_dim 30 --n_e_w 15 \
-  --dynamics_dim 50 --test_temp_id 9.95  --temp_id_end 10.0 --temp_id_start 1 --temp_id_frac 3 --anneal_end_id 1 --anneal_start_id 0.01 \
-    --anneal_frac_id 2 --anneal_start_t 30.0 --anneal_mid_t1 0.8 --anneal_mid_t2 0.8 --anneal_end_t 1 --anneal_t_midfrac1 0.7 --anneal_t_midfrac2 0.8 \
+   --anneal_start_dynamics 0.1 --anneal_end_dynamics 1.0 --anneal_frac_dynamics 1   --lr_VDSMSeq 0.001 --z_dim 30 --n_e_w 15 \
+--dynamics_dim 50 --test_temp_id 10.0 --temp_id_end 10.0 --temp_id_start 10.0 --temp_id_frac 1 --anneal_end_id 1.0 --anneal_start_id .1 \
+    --anneal_frac_id 3 --anneal_start_t 0.1 --anneal_mid_t1 0.4 --anneal_mid_t2 0.4 --anneal_end_t 1 --anneal_t_midfrac1 0.5 --anneal_t_midfrac2 0.8  \
     --rnn_dropout 0.2
 ```
 
+SPRITES
+```
+python3 main.py --RUN release_test_sprites --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 8 --epochs 200 --bs_per_epoch 50 \
+ --num_test_ids 12 --dataset_name sprites --model_save_interval 50 --pretrained_model_VDSMEncDec 199\
+    --train_VDSMSeq True --train_VDSMEncDec False --model_test_interval 10  \
+   --anneal_start_dynamics 0.1 --anneal_end_dynamics 1.0 --anneal_frac_dynamics 1   --lr_VDSMSeq 0.001 --z_dim 30 --n_e_w 40 \
+--dynamics_dim 50 --test_temp_id 10.0 --temp_id_end 10.0 --temp_id_start 10.0 --temp_id_frac 1 --anneal_end_id 1.0 --anneal_start_id .1 \
+    --anneal_frac_id 3 --anneal_start_t 0.1 --anneal_mid_t1 0.4 --anneal_mid_t2 0.4 --anneal_end_t 1 --anneal_t_midfrac1 0.5 --anneal_t_midfrac2 0.8  \
+    --rnn_dropout 0.2
+```
 
+#### FID information:
+For FID we used Evan: https://github.com/raahii/evan
 
-### 3. Test the network
-The network will be tested during training, but the test harness produces additional output for testing with FID scores
-and classification etc.
+and the ```resnext-101-kinetics.pth``` model and code available from https://github.com/kenshohara/video-classification-3d-cnn-pytorch
+(you may need to download this model and put it in the hidden folder ```.evan/```.
 
+To reproduce the results, you may need to replace the ```prepare_inception_model``` function in the ```evan``` package with:
 
+```python
+def prepare_inception_model(weight_dir: Path = CACHE_DIR, device: torch.device = torch.device("cpu")):
+    filename = "resnext-101-kinetics.pth"
+    weight_path = weight_dir / filename
+
+    model = resnet.resnet101(num_classes=400, shortcut_type='B', cardinality=32,
+                                      sample_size=112, sample_duration=16,
+                                      last_fc=False)
+
+    model_data = torch.load(str(weight_path), map_location="cpu")
+    fixed_model_data = OrderedDict()
+    for key, value in model_data["state_dict"].items():
+        new_key = key.replace("module.", "")
+        fixed_model_data[new_key] = value
+
+    model.load_state_dict(fixed_model_data, strict=False)
+    model = model.to(device)
+    model.eval()
+
+    return model
+```
+
+You may also need to replace the code for ```resnet.resnet101``` model with the model in https://github.com/kenshohara/video-classification-3d-cnn-pytorch
+
+### Classification Consistency, Inter/Intra Entropy
+
+For this we adapted the code from # see https://github.com/yatindandi/Disentangled-Sequential-Autoencoder/blob/master/classifier.py
+
+It can be found in ``` classifier_MUG.ipynb``` and ```classifier_sprites.ipynb```.
+
+Check the settings match those used in the test harness.
 
 
 ##  References
@@ -126,5 +200,5 @@ and classification etc.
 
 [2] N. Aifanti, C. Papachristou, and A. Delopoulos. The MUG facial  expression  database.Proc.  11th  Int.  Workshop  on Image Analysis for Multimedia Interactive Services, 2010.
 
-
+[3] Srivastava,  E.  Mansimov,  and  R.  Salakhutdinov. Un-supervised  learning  of  video  representations  using  LSTMs. arXiv:1502.04681v3, 2016.
 

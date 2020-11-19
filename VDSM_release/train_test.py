@@ -1,6 +1,6 @@
 import imageio
 from pyro.util import torch_isnan
-from pyro.infer import Trace_ELBO
+from pyro.infer import Trace_ELBO, TraceEnum_ELBO, TraceMeanField_ELBO
 from dataset import *
 from torch.utils.data import DataLoader
 import torch
@@ -47,7 +47,6 @@ class Trainer_Tester(object):
         self.test_harness = config.test_harness
 
         # blended model settings
-        self.likelihood = config.likelihood
         self.z_dim = config.z_dim
         self.n_e_w = config.n_e_w
         self.test_temp_id = config.test_temp_id
@@ -102,7 +101,8 @@ class Trainer_Tester(object):
         self.dec = Dec(imsize=self.imsize, z_dim=self.z_dim, nc=self.nc, n_expert_components=self.n_e_w).to(self.dev)
         self.id_layers = ID_Layers(n_e_w=self.n_e_w)
         self.VDSM_EncDec = VDSM_EncDec(enc=self.enc, dec=self.dec, id_layers=self.id_layers, seq_len=self.seq_len,
-                              z_dim=self.z_dim, imsize=self.imsize, n_e_w=self.n_e_w, likelihood=self.likelihood, nc=self.nc).to(self.dev)
+                                       z_dim=self.z_dim, imsize=self.imsize, n_e_w=self.n_e_w,
+                                       nc=self.nc).to(self.dev)
 
         self.rnn_enc = RNN_encoder(input_dim=self.z_dim, rnn_dim=self.rnn_dim, output_dim=self.z_dim,
                                    n_layers=self.rnn_layers, dropout=self.rnn_dropout).to(self.dev)
@@ -120,7 +120,7 @@ class Trainer_Tester(object):
 
         seq_params = [param for name, param in self.VDSMSeq.named_parameters() if 'image' not in name]
 
-        self.optim_seq = torch.optim.Adam([{"params": seq_params, "lr": self.lr_VDSMSeq}])
+        self.optim_VDSM_Seq = torch.optim.Adam([{"params": seq_params, "lr": self.lr_VDSMSeq}])
 
         self.load_model_opt_sched()
         if self.lr_resume is not None:
@@ -129,14 +129,14 @@ class Trainer_Tester(object):
                     g['lr'] = self.lr_resume
                     print(g['lr'])
             elif self.train_VDSMSeq:
-                for g in self.optim_seq.param_groups:
+                for g in self.optim_VDSM_Seq.param_groups:
                     g['lr'] = self.lr_resume
                     print(g['lr'])
 
     def train(self):
         print('Training model...')
-        self.vdsm_encdec_loss_fn = Trace_ELBO().differentiable_loss
-        self.vdsm_seq_loss_fn = Trace_ELBO().differentiable_loss
+        self.vdsm_encdec_loss_fn =Trace_ELBO().differentiable_loss
+        self.vdsm_seq_loss_fn = TraceEnum_ELBO(max_plate_nesting=2).differentiable_loss
 
         for self.current_epoch in range(self.starting_epoch, self.epochs):
             anneal_t = self.anneals_t[self.current_epoch]  # anneals the i.i.d. pose latent (outer))
@@ -146,6 +146,11 @@ class Trainer_Tester(object):
 
             print('Ann. z', anneal_t, 'Ann. dyn', anneal_dynamics, 'Ann. id', anneal_id, 'id temp', temp_id)
             epoch_loss = torch.tensor([0.]).to(self.dev)
+
+            if self.train_VDSMSeq:
+                self.VDSM_EncDec.train()
+            else:
+                self.VDSM_EncDec.eval()
 
             if self.train_VDSMSeq:
                 self.VDSMSeq.train()
@@ -165,8 +170,8 @@ class Trainer_Tester(object):
                                                                      self.imsize ** 2 * self.nc).shape
 
                     loss = self.vdsm_encdec_loss_fn(model=self.VDSM_EncDec.model, guide=self.VDSM_EncDec.guide,
-                                         x=x.to(self.dev), temp=torch.tensor(temp_id).cuda(),
-                                         anneal_id=anneal_id, anneal_t=anneal_t)
+                                                    x=x.to(self.dev), temp=torch.tensor(temp_id).cuda(),
+                                                    anneal_id=anneal_id, anneal_t=anneal_t)
 
                     assert not torch_isnan(loss)
                     loss.backward()
@@ -187,12 +192,13 @@ class Trainer_Tester(object):
 
                     loss.backward(retain_graph=False)
                     print(self.current_epoch, loss)
-                    self.optim_seq.step()
-                    self.optim_seq.zero_grad()
+                    self.optim_VDSM_Seq.step()
+                    self.optim_VDSM_Seq.zero_grad()
 
                     epoch_loss += loss
-
-            epoch_loss = epoch_loss / self.bs_per_epoch / (num_timepoints - 1) / self.bs / (64*64*self.nc)
+            epoch_loss = epoch_loss / self.bs_per_epoch / (self.imsize ** 2) / self.nc / \
+                                         x.shape[0]
+            # epoch_loss = epoch_loss / self.bs_per_epoch / (num_timepoints - 1) / self.bs / (self.imsize**2*self.nc)
 
             if self.tboard_log:
                 self.tboard.add_scalar("total loss", epoch_loss, self.current_epoch)
@@ -337,11 +343,12 @@ class Trainer_Tester(object):
 
             grids = []
             for s in range(num_timepoints):
-                grid = make_grid(recon_gen[:, s].view(-1, self.nc, self.imsize, self.imsize), nrow=int(np.sqrt(self.num_test_ids)))
+                grid = make_grid(recon_gen[:, s].view(-1, self.nc, self.imsize, self.imsize),
+                                 nrow=int(self.num_test_ids//2))
                 grids.append(grid)
 
             grids = torch.stack(grids)
-            gif_images = (255*grids.permute(0, 2, 3, 1).detach().cpu().numpy()).astype('uint8')
+            gif_images = (255 * grids.permute(0, 2, 3, 1).detach().cpu().numpy()).astype('uint8')
             filename = 'vid_{}_gen.gif'.format(epoch)
             if self.dataset_name == 'MUG-FED':
                 fps = 16
@@ -450,7 +457,7 @@ class Trainer_Tester(object):
             checkpoint = torch.load(os.path.join(self.model_save_path,
                                                  '{}_VDSM_seq.pth'.format(self.pretrained_model_VDSMSeq)))
             self.VDSMSeq.load_state_dict(checkpoint['model'])
-            self.optim_seq.load_state_dict(checkpoint['optimizer'])
+            self.optim_VDSM_Seq.load_state_dict(checkpoint['optimizer'])
             self.starting_epoch = checkpoint['epoch']
             print('Model loaded.')
         elif self.pretrained_model_VDSMSeq is None:
@@ -460,7 +467,7 @@ class Trainer_Tester(object):
             else:
                 checkpoint = torch.load(load_file)
                 self.VDSMSeq.load_state_dict(checkpoint['model'])
-                self.optim_seq.load_state_dict(checkpoint['optimizer'])
+                self.optim_VDSM_Seq.load_state_dict(checkpoint['optimizer'])
                 self.starting_epoch = checkpoint['epoch']
                 if self.train_VDSMSeq:
                     self.starting_epoch = epoch
@@ -479,7 +486,7 @@ class Trainer_Tester(object):
             seq_checkpoint = {
                 'epoch': self.current_epoch + 1,
                 'model': self.VDSMSeq.state_dict(),
-                'optimizer': self.optim_seq.state_dict()}
+                'optimizer': self.optim_VDSM_Seq.state_dict()}
             torch.save(seq_checkpoint, os.path.join(self.model_save_path, '{}_VDSM_seq.pth'.format(self.current_epoch)))
 
     def load_data(self):
@@ -504,9 +511,12 @@ class Trainer_Tester(object):
                                               pin_memory=False)
         elif self.dataset_name == 'sprites':
 
+            num_train = len(os.listdir(os.path.join(self.dataset_dir, 'train')))
+            num_test = len(os.listdir(os.path.join(self.dataset_dir, 'test')))
+
             self.dataset_train, self.dataset_test = create_sprites_dataset(path=self.dataset_dir,
-                                                                           num_train=6723,
-                                                                           num_test=837, slice_length=self.seq_len)
+                                                                           num_train=num_train,
+                                                                           num_test=num_test)
 
             self.dataloader_train = torch.utils.data.DataLoader(self.dataset_train, batch_size=self.bs,
                                                                 shuffle=True, num_workers=0,

@@ -1,6 +1,5 @@
 from parameters import get_parameters
 from train_test import Trainer_Tester
-from test_harness import Test_Harness
 from torch.backends import cudnn
 from utilities import make_folder
 import torch
@@ -26,13 +25,9 @@ def main(config):
 
 
     trainer_tester = Trainer_Tester(config)
-    # test_harness = Test_Harness(config)
-
     trainer_tester.train()
+    print('Training...')
 
-    # elif config.test_harness:
-    #     print('Test harness')
-    #     test_harness.test()
 
 
 if __name__ == '__main__':
