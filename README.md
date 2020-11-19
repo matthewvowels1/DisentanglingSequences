@@ -1,6 +1,11 @@
 # DisentanglingSequences
 Repo for the work on hierarchical state space models for disentanglement
 
+## TODO: 
+- Consolidate repeated functions.
+- Add other datasets
+- Adapt for CPU training
+
 ##  Generation Samples
 
 Note that these are random samples, so there may be inactive GIFs if the action is neutral.
@@ -53,7 +58,7 @@ argparse
 
 
 ##  Instructions
-```cd VDSM_release```
+N.B. Currently, VDSM is designed to train on GPU.
 
 ### 0. Download and preprocess MUG-FED dataset
 Go to https://mug.ee.auth.gr/fed/ and obtain a license.
@@ -72,10 +77,11 @@ Put these files in VDSM_release/data/MUG-FED/
 
 
 ### 1. Train the Encoder/Decoder
+1.1 Run in terminal: ```cd VDSM_release```
 
-Run this:
+1.2 Run this:
 ```
-    python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 50 --seq_len 16 --epochs 200 --bs_per_epoch 50 \
+    python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 20 --epochs 200 --bs_per_epoch 50 \
  --num_test_ids 6 --dataset_name MUG-FED --model_save_interval 2 --num_test_ids 2 \
     --train_VDSMSeq False --train_VDSMEncDec True --model_test_interval 2  \
   --anneal_start_dynamics 0.1 --anneal_end_dynamics 0.6 --anneal_frac_dynamics 1  --lr_VDSMEncDec 0.0005  --likelihood Bernoulli --z_dim 30 --n_e_w 15 \
@@ -96,8 +102,8 @@ If you get NaN again, you you use the ```--lr_resume``` argument to reduce the l
 To train the sequence network, you have to specify the {}_VDSM_EncDec.pth number to use as the pretrained model.
 (Usually it will be (epochs-1) for the number of epochs used during pretraining)
 ```
-    python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 50 --seq_len 16 --epochs 100 --bs_per_epoch 50 \
- --num_test_ids 6 --dataset_name MUG-FED --model_save_interval 20 --num_test_ids 2 --pretrained_model_VDSMEncDec 199\
+    python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 16 --epochs 100 --bs_per_epoch 50 \
+ --num_test_ids 10 --dataset_name MUG-FED --model_save_interval 20 --num_test_ids 2 --pretrained_model_VDSMEncDec 99\
     --train_VDSMSeq True --train_VDSMEncDec False --model_test_interval 10  \
   --anneal_start_dynamics 0.1 --anneal_end_dynamics 0.6 --anneal_frac_dynamics 1  --lr_VDSMSeq 0.001  --likelihood Bernoulli --z_dim 30 --n_e_w 15 \
   --dynamics_dim 50 --test_temp_id 9.95  --temp_id_end 10.0 --temp_id_start 1 --temp_id_frac 3 --anneal_end_id 1 --anneal_start_id 0.01 \
@@ -105,7 +111,7 @@ To train the sequence network, you have to specify the {}_VDSM_EncDec.pth number
     --rnn_dropout 0.2
 ```
 
-TODO: Consolidate repeated functions.
+
 
 ### 3. Test the network
 The network will be tested during training, but the test harness produces additional output for testing with FID scores

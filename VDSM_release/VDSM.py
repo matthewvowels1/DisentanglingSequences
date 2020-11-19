@@ -347,7 +347,7 @@ class VDSM_Seq(nn.Module):
                 zs[i, t] = z[0]
                 z_prev = z
 
-        recon = torch.zeros(bs, seq_len, self.imsize ** 2 * self.nc, device=test_images.device)
+        recon = torch.zeros(bs, seq_len, pixels, device=test_images.device)
 
         for ind in range(bs):
             recon[ind] = self.image_dec(zs[ind], ID[ind].unsqueeze(1))

@@ -201,6 +201,34 @@ class GatedTransition(nn.Module):
         scale = self.softplus(self.lin_sig(self.relu(proposed_mean)))
         # return loc, scale which can be fed into Normal
         return loc, scale
+#
+#
+# class Combiner(nn.Module):
+#     def __init__(self, z_dim, rnn_dim, dynamics_dim):
+#         super().__init__()
+#         # initialize the three linear transformations used in the neural network
+#         self.rnn_dim = rnn_dim
+#         self.h_rnn_to_hidden = nn.Linear(dynamics_dim + rnn_dim, rnn_dim)
+#         self.lin_z_to_hidden = nn.Linear(z_dim, rnn_dim)
+#         self.lin_hidden_to_loc = nn.Linear(self.rnn_dim, z_dim)
+#         self.lin_hidden_to_scale = nn.Linear(self.rnn_dim, z_dim)
+#         # initialize the two non-linearities used in the neural network
+#         self.tanh = nn.Tanh()
+#         self.softplus = nn.Softplus()
+#         self.act = nn.LeakyReLU()
+#
+#     def forward(self, z_t_1, h_rnn, dz):
+#
+#         h_rnn = torch.cat((h_rnn, dz), -1)
+#         h_rnn = self.act(self.h_rnn_to_hidden(h_rnn))
+#         # combine the rnn hidden state with a transformed version of z_t_1
+#         h_combined = 0.5 * (self.tanh(self.lin_z_to_hidden(z_t_1)) + h_rnn)
+#         # use the combined hidden state to compute the mean used to sample z_t
+#         loc = self.lin_hidden_to_loc(h_combined)
+#         # use the combined hidden state to compute the scale used to sample z_t
+#         scale = self.softplus(self.lin_hidden_to_scale(h_combined))
+#         # return loc, scale which can be fed into Normal
+#         return loc, scale
 
 
 class Combiner(nn.Module):
@@ -208,27 +236,17 @@ class Combiner(nn.Module):
         super().__init__()
         # initialize the three linear transformations used in the neural network
         self.rnn_dim = rnn_dim
-        self.h_rnn_to_hidden = nn.Linear(dynamics_dim + rnn_dim, rnn_dim)
-        self.lin_z_to_hidden = nn.Linear(z_dim, rnn_dim)
-        self.lin_hidden_to_loc = nn.Linear(self.rnn_dim, z_dim)
-        self.lin_hidden_to_scale = nn.Linear(self.rnn_dim, z_dim)
+        self.lin_hidden_to_loc = nn.Linear(self.rnn_dim + z_dim, z_dim)
+        self.lin_hidden_to_scale = nn.Linear(self.rnn_dim + z_dim, z_dim)
         # initialize the two non-linearities used in the neural network
         self.tanh = nn.Tanh()
         self.softplus = nn.Softplus()
         self.act = nn.LeakyReLU()
 
     def forward(self, z_t_1, h_rnn, dz):
-
-        h_rnn = torch.cat((h_rnn, dz), -1)
-        h_rnn = self.act(self.h_rnn_to_hidden(h_rnn))
-        # combine the rnn hidden state with a transformed version of z_t_1
-        h_combined = 0.5 * (self.tanh(self.lin_z_to_hidden(z_t_1)) + h_rnn)
-        # use the combined hidden state to compute the mean used to sample z_t
+        h_combined = torch.cat((z_t_1, h_rnn), -1)
         loc = self.lin_hidden_to_loc(h_combined)
         # use the combined hidden state to compute the scale used to sample z_t
         scale = self.softplus(self.lin_hidden_to_scale(h_combined))
         # return loc, scale which can be fed into Normal
         return loc, scale
-
-
-
