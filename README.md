@@ -1,34 +1,43 @@
 # DisentanglingSequences
-Release version of the work on hierarchical state space models for video disentanglement (VDSM)
-
-## TODO: 
-- Consolidate repeated functions.
-- Consolidate test_harness.py and train_test.py
-- Add pendulum dataset
-- Add moving MNIST dataset
-- Adapt for CPU training
-- Implement Inter and Intra-Entropy for sprites
-- Implement test harness
+In the interests of reproducibility, this repository contains instructions and code for a release version of the work on hierarchical state space models for video disentanglement (VDSM)
 
 ##  Generation Samples
 
-Note that these are random samples, so there may be inactive GIFs if the action is neutral.
+Note that these are random samples from the test set, so there may be inactive GIFs if the action is neutral.
 
 Pendulum swings (60 timesteps)
 
-![](pend_1.gif) ![](pend_2.gif) ![](pend_3.gif)
-
-Animated Sprites [1] (8 timesteps)
-
-![](sprite_1.gif)![](sprite_2.gif)
-
-MUG-FED [2] (20 timesteps)
-
-![](mug_1.gif)![](mug_2.gif)![](mug_3.gif)
+![](pend_1.gif)![](pend_2.gif)![](pend_3.gif)![](pend_4.gif)![](pend_5.gif)
 
 MovingMNIST [3] (16 timesteps)
 
-![](mnist_1.gif) ![](mnist_2.gif)
+![](mnist_1.gif)![](mnist_2.gif)
+
+
+Animated Sprites [1] (8 timesteps)
+
+![](sprite_2.gif)
+![](sprite_3.gif)
+![](sprite_4.gif)
+
+Animated Sprites Action Transfer (first column is target action):
+
+![](sprite_trans_1.gif)
+
+MUG-FED [2] (20 timesteps)
+
+![](mug_1.gif)
+
+![](mug_2.gif)
+
+![](mug_3.gif)
+
+MUG-FED Action Transfer (first column is target action):
+
+![](mug_swap_1.gif)
+
+![](mug_swap_2.gif)
+
 
 ## Required Packages/Libraries
 python 3.7.6
@@ -109,7 +118,7 @@ python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_le
 
 Sprites:
 ```
-python3 main.py --RUN release_test_sprites --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 8 --epochs 200 --bs_per_epoch 50 \
+python3 main.py --RUN release_test_sprites --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 16 --epochs 200 --bs_per_epoch 50 \
  --num_test_ids 12 --dataset_name sprites --model_save_interval 50  \
     --train_VDSMSeq False --train_VDSMEncDec True --model_test_interval 10  \
   --anneal_start_dynamics 0.1 --anneal_end_dynamics 0.6 --anneal_frac_dynamics 1  --lr_VDSMEncDec 0.001 --lr_resume 0.0008  --z_dim 30 --n_e_w 40 \
@@ -123,7 +132,7 @@ If you encounter NaN during training, you can try resuming from where you last c
 
 You need to manually delete the model.pth files in the models folder if you want to start training from scratch.
 
-If you get NaN again, you can use the ```--lr_resume``` argument to reduce the learning rate.
+If you get NaN again, you can add e.g. ```--lr_resume 0.0008``` argument to reduce the learning rate.
 
 
 ### 2. Train the Sequential Network
@@ -133,8 +142,8 @@ To train the sequence network, you have to specify the {}_VDSM_EncDec.pth number
 
 MUG:
 ```
-python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 20 --epochs 200 --bs_per_epoch 50 \
- --num_test_ids 12 --dataset_name MUG-FED --model_save_interval 50 --pretrained_model_VDSMEncDec 249\
+python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 20 --epochs 200 --bs_per_epoch 2 \
+ --num_test_ids 6 --dataset_name MUG-FED --model_save_interval 50 --pretrained_model_VDSMEncDec 249\
     --train_VDSMSeq True --train_VDSMEncDec False --model_test_interval 10  \
    --anneal_start_dynamics 0.1 --anneal_end_dynamics 1.0 --anneal_frac_dynamics 1   --lr_VDSMSeq 0.001 --z_dim 30 --n_e_w 15 \
 --dynamics_dim 50 --test_temp_id 10.0 --temp_id_end 10.0 --temp_id_start 10.0 --temp_id_frac 1 --anneal_end_id 1.0 --anneal_start_id .1 \
@@ -153,6 +162,8 @@ python3 main.py --RUN release_test_sprites --rnn_layers 3 --rnn_dim 512 --bs 20 
     --rnn_dropout 0.2
 ```
 
+Testing: just set both train_VDSMSeq and train_VDSMEncDec to False.
+  
 #### FID information:
 For FID we used Evan: https://github.com/raahii/evan
 
@@ -191,7 +202,61 @@ For this we adapted the code from # see https://github.com/yatindandi/Disentangl
 
 It can be found in ``` classifier_MUG.ipynb``` and ```classifier_sprites.ipynb```.
 
-Check the settings match those used in the test harness.
+To use these, you need to export the embeddings learned by the model using functions like these:
+
+```python
+    def extract_id_etc(self, test_images):  # test images is shape [bs, seq_len, 3, 64, 64]
+        num_individuals, num_timepoints, pixels = (test_images.shape[0],
+                                                   test_images.shape[1],
+                                                   self.imsize ** 2 * self.nc)
+
+        unrav = test_images.view(num_individuals * num_timepoints, self.nc, self.imsize, self.imsize)
+        loc, _, ID, ID_scale = self.VDSM_Seq.image_enc.forward(unrav.to(self.dev))
+        loc = loc.view(num_individuals, num_timepoints, -1)
+        ID, _ = self.id_layers(ID, ID_scale)
+        ID = torch.mean(ID.view(num_individuals, num_timepoints, -1), 1).unsqueeze(1)
+        ID = ID * self.temp_id_end
+        ID_exp = torch.exp(ID)
+        ID = ID_exp / ID_exp.sum(-1).unsqueeze(-1)
+        seq = loc.permute(1, 0, 2)
+        return ID, seq, num_individuals, num_timepoints, pixels
+
+
+    def generate_sequences(self, test_images):  # test images is shape [bs, seq_len, 3, 64, 64]
+        ID, seq, num_individuals, num_timepoints, pixels = self.extract_id_etc(test_images)
+
+        futures = self.VDSM_Seq.test_sequence(seq, num_timepoints).permute(1, 0, 2)
+
+        recon_gen = torch.zeros(num_individuals, num_timepoints, pixels, device=test_images.device)
+
+        for ind in range(num_individuals):
+            recon_gen[ind] = self.VDSM_Seq.image_dec.forward(futures[ind], ID[ind, 0].unsqueeze(1))
+        recon_gen = recon_gen.view(num_individuals, num_timepoints, self.nc, self.imsize, self.imsize)
+        return recon_gen
+
+    def generate_codes(self, test_images, labels, p):  # test images is shape [bs, seq_len, 3, 64, 64] 
+        ID, seq, num_individuals, num_timepoints, pixels = self.extract_id_etc(test_images)
+        dynamics = self.VDSM_Seq.return_dynamics(seq).detach().cpu().numpy()
+        recon_gen = self.generate_sequences(test_images).detach().cpu().numpy()
+        
+        np.savez(os.path.join(self.code_path, 'id_{}.npz'.format(p)), ID.detach().cpu().numpy())
+        if labels is not None:
+            np.savez(os.path.join(self.code_path, 'labels_{}.npz'.format(p)), labels)
+        np.savez(os.path.join(self.code_path, 'dynamics_{}.npz'.format(p)), dynamics)
+        np.savez(os.path.join(self.code_path, 'test_images_{}.npz'.format(p)), test_images.detach().cpu().numpy())
+        np.savez(os.path.join(self.code_path, 'recon_images_{}.npz'.format(p)), recon_gen)       
+```
+
+These have not yet be integrated into the release code (see TODO below).
+
+## TODO: 
+- Consolidate repeated functions.
+- Create test_harness.py and consolidate with train_test.py
+- Add pendulum dataset
+- Add moving MNIST dataset
+- Adapt for CPU training
+- Implement Inter and Intra-Entropy for sprites
+- Implement test harness
 
 
 ##  References

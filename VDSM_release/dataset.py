@@ -103,5 +103,10 @@ class MySpritesDataset(Dataset):
         first_item = torch.load(self.path + '/%d.sprite' % (first_action_index + 1))
         second_item = torch.load(self.path + '/%d.sprite' % (second_action_index + 1))
         #         item = torch.load(self.path + '/%d.sprite' % (0 + 1))
-        return first_item, second_item
+
+        first_seq = (first_item['sprite'] + 1) / 2
+        second_seq = (second_item['sprite'] + 1) / 2
+        x = torch.cat((first_seq, second_seq), 0)
+
+        return x, first_item
 

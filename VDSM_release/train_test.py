@@ -158,13 +158,12 @@ class Trainer_Tester(object):
                 self.VDSMSeq.eval()
 
             for b in range(self.bs_per_epoch):
-                if self.dataset_name == 'MUG-FED':
-                    x, y = next(iter(self.dataloader_test))
-                elif self.dataset_name == 'sprites':
-                    x, _ = next(iter(self.dataloader_test))
-                    x = (x['sprite'] + 1) / 2
 
                 if self.train_VDSMEncDec:
+                    if self.dataset_name == 'MUG-FED':
+                        x, _ = next(iter(self.dataloader_test))
+                    elif self.dataset_name == 'sprites':
+                        x, _ = next(iter(self.dataloader_train))
 
                     num_individuals, num_timepoints, pixels = x.view(x.shape[0], x.shape[1],
                                                                      self.imsize ** 2 * self.nc).shape
@@ -181,6 +180,11 @@ class Trainer_Tester(object):
                     epoch_loss += loss
 
                 elif self.train_VDSMSeq:
+                    if self.dataset_name == 'MUG-FED':
+                        x, _ = next(iter(self.dataloader_test))
+                    elif self.dataset_name == 'sprites':
+                        _, x = next(iter(self.dataloader_train))
+                        x = (x['sprite'] + 1) / 2
 
                     num_timepoints = x.shape[1]
 
@@ -226,135 +230,134 @@ class Trainer_Tester(object):
         if self.dataset_name == 'MUG-FED':
             test_images, test_y = next(iter(self.dataloader_test))
         elif self.dataset_name == 'sprites':
-            test_images, _ = next(iter(self.dataloader_test))
+            _, test_images= next(iter(self.dataloader_test))
             test_images = (test_images['sprite'] + 1) / 2
 
-        if self.train_VDSMEncDec:
-            rs = []
-            ids = []
-            targs = []
-            blank_image = torch.zeros(self.nc, self.imsize, self.imsize).to(test_images.device)
 
-            n_test_ids = test_images.shape[0]
+        rs = []
+        ids = []
+        targs = []
+        blank_image = torch.zeros(self.nc, self.imsize, self.imsize).to(test_images.device)
 
-            for i in range(n_test_ids):
-                targ = test_images[i, 0:1]
-                targs.append(targ[0])
-                r, bc = self.VDSM_EncDec.reconstruct_img(targ.cuda(), temp=self.test_temp_id, ID_spec=None)
-                rs.append(r)
-                ids.append(bc)
+        n_test_ids = test_images.shape[0]
 
-            ids.insert(0, ids[0])
-            targs.insert(0, blank_image)
-            rs.insert(0, blank_image)
+        for i in range(n_test_ids):
+            targ = test_images[i, 0:1]
+            targs.append(targ[0])
+            r, bc = self.VDSM_EncDec.reconstruct_img(targ.cuda(), temp=self.test_temp_id, ID_spec=None)
+            rs.append(r)
+            ids.append(bc)
 
-            new_rs = []
-            for i in range(n_test_ids + 1):
-                for j in range(n_test_ids + 1):
-                    r, _ = self.VDSM_EncDec.reconstruct_img(targs[i][None].cuda(), temp=self.test_temp_id, ID_spec=ids[j].T)
-                    new_rs.append(r[0].view(self.nc, self.imsize, self.imsize))
+        ids.insert(0, ids[0])
+        targs.insert(0, blank_image)
+        rs.insert(0, blank_image)
 
-            grid_recon = make_grid(new_rs, nrow=n_test_ids + 1)
-            grid_targs_vert = make_grid(targs, nrow=1)
-            grid_targs_horiz = make_grid(targs, nrow=self.num_test_ids + 1)
-            grid_recon[:, :, :grid_targs_vert.shape[2]] = grid_targs_vert
-            grid_recon[:, :grid_targs_vert.shape[2], :] = grid_targs_horiz
-            save_image(grid_recon, os.path.join(self.image_path, 'swap_ep_{}_rec.png'.format(epoch)))
+        new_rs = []
+        for i in range(n_test_ids + 1):
+            for j in range(n_test_ids + 1):
+                r, _ = self.VDSM_EncDec.reconstruct_img(targs[i][None].cuda(), temp=self.test_temp_id, ID_spec=ids[j].T)
+                new_rs.append(r[0].view(self.nc, self.imsize, self.imsize))
 
-            rs = []
-            targs = []
-            for i in range(n_test_ids):
-                targ = test_images[i, 0:1]
-                targs.append(targ[0])
-                r, bc = self.VDSM_EncDec.reconstruct_img(targ.cuda(), temp=self.test_temp_id, ID_spec=None)
-                rs.append(r[0].view(self.nc, self.imsize, self.imsize))
-            grid_recon = make_grid(rs, nrow=self.bs)
-            grid_targs = make_grid(targs, nrow=self.bs)
-            save_image(grid_recon, os.path.join(self.image_path, 'train_{}_rec.png'.format(epoch)))
-            save_image(grid_targs, os.path.join(self.image_path, 'train_{}_targ.png'.format(epoch)))
+        grid_recon = make_grid(new_rs, nrow=n_test_ids + 1)
+        grid_targs_vert = make_grid(targs, nrow=1)
+        grid_targs_horiz = make_grid(targs, nrow=self.num_test_ids + 1)
+        grid_recon[:, :, :grid_targs_vert.shape[2]] = grid_targs_vert
+        grid_recon[:, :grid_targs_vert.shape[2], :] = grid_targs_horiz
+        save_image(grid_recon, os.path.join(self.image_path, 'swap_ep_{}_rec.png'.format(epoch)))
 
-        ### Now the sequence model testing #####
-        elif self.train_VDSMSeq:
-            rs = []
-            ids = []
-            inputs = []
-            targs = []
-            blank_image = torch.zeros(self.nc, self.imsize, self.imsize).to(test_images.device)
+        rs = []
+        targs = []
+        for i in range(n_test_ids):
+            targ = test_images[i, 0:1]
+            targs.append(targ[0])
+            r, bc = self.VDSM_EncDec.reconstruct_img(targ.cuda(), temp=self.test_temp_id, ID_spec=None)
+            rs.append(r[0].view(self.nc, self.imsize, self.imsize))
+        grid_recon = make_grid(rs, nrow=self.bs)
+        grid_targs = make_grid(targs, nrow=self.bs)
+        save_image(grid_recon, os.path.join(self.image_path, 'train_{}_rec.png'.format(epoch)))
+        save_image(grid_targs, os.path.join(self.image_path, 'train_{}_targ.png'.format(epoch)))
 
-            for i in range(self.num_test_ids):
-                targ = test_images[i, 1:2]
-                targs.append(targ[0])
-                input = test_images[i, 0:1]
-                inputs.append(input[0])
-                r, ID = self.VDSMSeq.test_swap(input.cuda(), temp_id=self.temp_id_end, ID_spec=None)
-                rs.append(r[0].view(self.nc, self.imsize, self.imsize))
-                ids.append(ID)
+        rs = []
+        ids = []
+        inputs = []
+        targs = []
+        blank_image = torch.zeros(self.nc, self.imsize, self.imsize).to(test_images.device)
 
-            ids.insert(0, ids[0])
-            targs.insert(0, blank_image)
-            inputs.insert(0, blank_image)
-            rs.insert(0, blank_image)
+        for i in range(self.num_test_ids):
+            targ = test_images[i, 1:2]
+            targs.append(targ[0])
+            input = test_images[i, 0:1]
+            inputs.append(input[0])
+            r, ID = self.VDSMSeq.test_swap(input.cuda(), temp_id=self.temp_id_end, ID_spec=None)
+            rs.append(r[0].view(self.nc, self.imsize, self.imsize))
+            ids.append(ID)
 
-            new_rs = []
-            for i in range(self.num_test_ids + 1):
-                for j in range(self.num_test_ids + 1):
-                    r, _ = self.VDSMSeq.test_swap(inputs[i][None].cuda(), temp_id=self.temp_id_end, ID_spec=ids[j].T)
-                    new_rs.append(r[0].view(self.nc, self.imsize, self.imsize))
+        ids.insert(0, ids[0])
+        targs.insert(0, blank_image)
+        inputs.insert(0, blank_image)
+        rs.insert(0, blank_image)
 
-            grid_recon = make_grid(new_rs, nrow=self.num_test_ids + 1)
-            grid_targs_vert = make_grid(targs, nrow=1)
-            grid_targs_horiz = make_grid(targs, nrow=self.num_test_ids + 1)
-            grid_recon[:, :, :grid_targs_vert.shape[2]] = grid_targs_vert
-            grid_recon[:, :grid_targs_vert.shape[2], :] = grid_targs_horiz
-            save_image(grid_recon, os.path.join(self.image_path, 'swap_ep_{}_rec.png'.format(epoch)))
+        new_rs = []
+        for i in range(self.num_test_ids + 1):
+            for j in range(self.num_test_ids + 1):
+                r, _ = self.VDSMSeq.test_swap(inputs[i][None].cuda(), temp_id=self.temp_id_end, ID_spec=ids[j].T)
+                new_rs.append(r[0].view(self.nc, self.imsize, self.imsize))
 
-            test_images_predict = test_images[:self.num_test_ids, :, :, :]
-            self.swap_id_generate_sequence(test_images_predict, epoch)
-            num_individuals, num_timepoints, pixels = (test_images_predict.shape[0],
-                                                       test_images_predict.shape[1],
-                                                       self.imsize ** 2 * self.nc)
+        grid_recon = make_grid(new_rs, nrow=self.num_test_ids + 1, padding=0)
+        grid_targs_vert = make_grid(targs, nrow=1, padding=0)
+        grid_targs_horiz = make_grid(targs, nrow=self.num_test_ids + 1, padding=0)
+        grid_recon[:, :, :grid_targs_vert.shape[2]] = grid_targs_vert
+        grid_recon[:, :grid_targs_vert.shape[2], :] = grid_targs_horiz
+        save_image(grid_recon, os.path.join(self.image_path, 'swap_ep_{}_rec.png'.format(epoch)))
 
-            unrav = test_images_predict.view(num_individuals * num_timepoints, self.nc, self.imsize, self.imsize)
-            loc, _, ID, ID_scale = self.VDSMSeq.image_enc.forward(unrav.to(self.dev))
-            loc = loc.view(num_individuals, num_timepoints, -1)
-            ID, _ = self.id_layers(ID, ID_scale)
-            ID = torch.mean(ID.view(num_individuals, num_timepoints, -1), 1).unsqueeze(1)
-            ID = ID * self.temp_id_end
-            ID_exp = torch.exp(ID)
-            ID = ID_exp / ID_exp.sum(-1).unsqueeze(-1)
-            seq = loc.permute(1, 0, 2)
 
-            futures = self.VDSMSeq.test_sequence(seq, num_timepoints).permute(1, 0, 2)
+        test_images_predict = test_images[:self.num_test_ids, :, :, :]
+        self.swap_id_generate_sequence(test_images_predict, epoch)
+        num_individuals, num_timepoints, pixels = (test_images_predict.shape[0],
+                                                   test_images_predict.shape[1],
+                                                   self.imsize ** 2 * self.nc)
 
-            # loc = loc[:, 1:]
-            recon_gen = torch.zeros(num_individuals, num_timepoints, pixels, device=loc.device)
+        unrav = test_images_predict.view(num_individuals * num_timepoints, self.nc, self.imsize, self.imsize)
+        loc, _, ID, ID_scale = self.VDSMSeq.image_enc.forward(unrav.to(self.dev))
+        loc = loc.view(num_individuals, num_timepoints, -1)
+        ID, _ = self.id_layers(ID, ID_scale)
+        ID = torch.mean(ID.view(num_individuals, num_timepoints, -1), 1).unsqueeze(1)
+        ID = ID * self.temp_id_end
+        ID_exp = torch.exp(ID)
+        ID = ID_exp / ID_exp.sum(-1).unsqueeze(-1)
+        seq = loc.permute(1, 0, 2)
 
-            for ind in range(num_individuals):
-                recon_gen[ind] = self.VDSMSeq.image_dec.forward(futures[ind], ID[ind, 0].unsqueeze(1))
+        futures = self.VDSMSeq.test_sequence(seq, num_timepoints).permute(1, 0, 2)
 
-            grid_all = recon_gen.view(num_individuals, num_timepoints, pixels)  # interleave
-            grid_seq = make_grid(grid_all.view(-1, self.nc, self.imsize, self.imsize), nrow=num_timepoints)
-            save_image(grid_seq, os.path.join(self.image_path, 'seq_{}_rec.png'.format(epoch)))
+        # loc = loc[:, 1:]
+        recon_gen = torch.zeros(num_individuals, num_timepoints, pixels, device=loc.device)
 
-            grid_targ = make_grid(test_images_predict.view(-1, self.nc, self.imsize, self.imsize), nrow=num_timepoints)
-            save_image(grid_targ, os.path.join(self.image_path, 'seq_{}_gt.png'.format(epoch)))
+        for ind in range(num_individuals):
+            recon_gen[ind] = self.VDSMSeq.image_dec.forward(futures[ind], ID[ind, 0].unsqueeze(1))
 
-            print('saving GIFs')
+        grid_all = recon_gen.view(num_individuals, num_timepoints, pixels)  # interleave
+        grid_seq = make_grid(grid_all.view(-1, self.nc, self.imsize, self.imsize), nrow=num_timepoints)
+        save_image(grid_seq, os.path.join(self.image_path, 'seq_{}_rec.png'.format(epoch)))
 
-            grids = []
-            for s in range(num_timepoints):
-                grid = make_grid(recon_gen[:, s].view(-1, self.nc, self.imsize, self.imsize),
-                                 nrow=int(self.num_test_ids//2))
-                grids.append(grid)
+        grid_targ = make_grid(test_images_predict.view(-1, self.nc, self.imsize, self.imsize), nrow=num_timepoints)
+        save_image(grid_targ, os.path.join(self.image_path, 'seq_{}_gt.png'.format(epoch)))
 
-            grids = torch.stack(grids)
-            gif_images = (255 * grids.permute(0, 2, 3, 1).detach().cpu().numpy()).astype('uint8')
-            filename = 'vid_{}_gen.gif'.format(epoch)
-            if self.dataset_name == 'MUG-FED':
-                fps = 16
-            else:
-                fps = 10
-            imageio.mimsave(os.path.join(self.image_path, filename), gif_images, fps=fps)
+        print('saving GIFs')
+        grids = []
+        for s in range(num_timepoints):
+            grid = make_grid(recon_gen[:, s].view(-1, self.nc, self.imsize, self.imsize),
+                             nrow=int(self.num_test_ids//2))
+            grids.append(grid)
+
+        grids = torch.stack(grids)
+
+        gif_images = (255 * grids.permute(0, 2, 3, 1).detach().cpu().numpy()).astype('uint8')
+        filename = 'vid_{}_gen.gif'.format(epoch)
+        if self.dataset_name == 'MUG-FED':
+            fps = 16
+        else:
+            fps = 10
+        imageio.mimsave(os.path.join(self.image_path, filename), gif_images, fps=fps)
 
     def swap_id_generate_sequence(self, test_images, p):
         ID, seq, num_individuals, num_timepoints, pixels = self.extract_id_etc(test_images)
@@ -369,8 +372,24 @@ class Trainer_Tester(object):
 
         recon_gen = torch.stack(recon_gen)
         recon_gen = recon_gen.view(num_individuals ** 2, num_timepoints, self.nc, self.imsize, self.imsize)
-        grid_seq = make_grid(recon_gen.view(-1, self.nc, self.imsize, self.imsize), nrow=num_timepoints)
+        grid_seq = make_grid(recon_gen.view(-1, self.nc, self.imsize, self.imsize), nrow=num_timepoints, padding=0)
         save_image(grid_seq, os.path.join(self.image_path, 'seq_swap_id_{}_gen.png'.format(p)))
+        gif_array = recon_gen.permute(1, 0, 2, 3, 4)
+        grids = []
+        for s in range(num_timepoints):
+            grid = make_grid(gif_array[s].view(-1, self.nc, self.imsize, self.imsize),
+                             nrow=self.num_test_ids, padding=0)
+            grids.append(grid)
+
+        grids = torch.stack(grids)
+        print('check', grids.shape, self.num_test_ids)
+        gif_images = (255 * grids.permute(0, 2, 3, 1).detach().cpu().numpy()).astype('uint8')
+        filename = 'vid_swap_{}_gen.gif'.format(p)
+        if self.dataset_name == 'MUG-FED':
+            fps = 16
+        else:
+            fps = 10
+        imageio.mimsave(os.path.join(self.image_path, filename), gif_images, fps=fps)
         return
 
     def extract_id_etc(self, test_images):

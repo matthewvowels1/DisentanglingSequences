@@ -23,10 +23,13 @@ def main(config):
     with open(os.path.join(config.model_save_path, config.RUN, 'config.txt'), 'w') as file:
         file.write(str(vars(config)))
 
-
     trainer_tester = Trainer_Tester(config)
-    trainer_tester.train()
-    print('Training...')
+    if config.train_VDSMSeq or config.train_VDSMEncDec:
+        print('Training...')
+        trainer_tester.train()
+    else:
+        print('Testing...')
+        trainer_tester.test()
 
 
 
