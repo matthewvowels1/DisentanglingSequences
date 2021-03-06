@@ -5,16 +5,16 @@ This repository contains instructions and code for a release version of the work
 
 Note that these are random samples from the test set, so there may be inactive GIFs if the action is neutral.
 
-Pendulum swings (60 timesteps)
+Pendulum Swing Generation (60 timesteps)
 
 ![](pend_1.gif)![](pend_2.gif)![](pend_3.gif)![](pend_4.gif)![](pend_5.gif)
 
-MovingMNIST [3] (16 timesteps)
+MovingMNIST Generation [3] (16 timesteps)
 
 ![](mnist_1.gif)![](mnist_2.gif)
 
 
-Animated Sprites [1] (8 timesteps)
+Animated Sprites Generation [1] (8 timesteps)
 
 ![](sprite_2.gif)
 ![](sprite_3.gif)
@@ -24,7 +24,7 @@ Animated Sprites Action Transfer (first column is target action):
 
 ![](sprite_trans_1.gif)
 
-MUG-FED [2] (20 timesteps)
+MUG-FED [2] Generation (20 timesteps)
 
 ![](mug_1.gif)
 
