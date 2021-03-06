@@ -9,12 +9,12 @@ Pendulum Swing Generation (60 timesteps)
 
 ![](pend_1.gif)![](pend_2.gif)![](pend_3.gif)![](pend_4.gif)![](pend_5.gif)
 
-MovingMNIST Generation [3] (16 timesteps)
+MovingMNIST [3] Generation (16 timesteps)
 
 ![](mnist_1.gif)![](mnist_2.gif)
 
 
-Animated Sprites Generation [1] (8 timesteps)
+Animated Sprites [1] Generation (8 timesteps)
 
 ![](sprite_2.gif)
 ![](sprite_3.gif)
