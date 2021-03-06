@@ -140,7 +140,7 @@ If you get NaN again, you can add e.g. ```--lr_resume 0.0008``` argument to redu
 To train the sequence network, you have to specify the {}_VDSM_EncDec.pth number to use as the pretrained model.
 (Usually it will be (epochs-1) for the number of epochs used during pretraining)
 
-MUG:
+MUG: 
 ```
 python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 20 --epochs 200 --bs_per_epoch 2 \
  --num_test_ids 6 --dataset_name MUG-FED --model_save_interval 50 --pretrained_model_VDSMEncDec 249\
@@ -152,6 +152,7 @@ python3 main.py --RUN release_test --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_le
 ```
 
 SPRITES
+Note that the Sprites dataset (due in part to its synthetic nature), has limited variability to separate identity and pose. To improve the consistency of results, we have added a feature in dataset.py which pairs up *two* random actions (from sprites with the same identity). This produces enough variation across pose to consistently disentangle it from identity.
 ```
 python3 main.py --RUN release_test_sprites --rnn_layers 3 --rnn_dim 512 --bs 20 --seq_len 8 --epochs 200 --bs_per_epoch 50 \
  --num_test_ids 12 --dataset_name sprites --model_save_interval 50 --pretrained_model_VDSMEncDec 199\
