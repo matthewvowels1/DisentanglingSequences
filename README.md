@@ -1,5 +1,5 @@
 # VDSM: Unsupervised Video Disentanglement with State-Space Modeling and Deep Mixtures of Experts
-This repository contains instructions and code for a release version of the work on hierarchical state space models for *VDSM: Unsupervised Video Disentanglement with State-Space Modeling and Deep Mixtures of Experts* (CVPR '21, in print - Vowels, Camgoz, Bowden).
+This repository contains instructions and code for a release version of the work on hierarchical state space models for *VDSM: Unsupervised Video Disentanglement with State-Space Modeling and Deep Mixtures of Experts* (CVPR '21, in print - Vowels, Camgoz, Bowden). A preprint can be found here: https://arxiv.org/abs/2103.07292
 
 ##  Generation Samples
 
